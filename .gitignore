@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
-
+# Midi files (audio files)
 *.mid
 *.wav
+
+# Data files
+data/
