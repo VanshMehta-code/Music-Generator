@@ -14,4 +14,4 @@ wheels/
 *.wav
 
 # Data files
-data/
+data
