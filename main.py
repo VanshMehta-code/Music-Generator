@@ -89,7 +89,7 @@ class Model(nn.Module):
         cont_input = self.cont_proj(cont)
         input = torch.cat([pitch_input, cont_input], -1)
 
-        output, hidden = self.lstm(input, hidden=hidden)
+        output, hidden = self.lstm(input, hidden)
 
         pitch_logit = self.pitch_output(output)
         cont_logit = self.cont_output(output)
@@ -111,16 +111,22 @@ class Train:
         cont_in_features=2,
         cont_out_features=16,
         dropout=0.2,
-        epoch=32,
+        epochs=8,
         save_path="model.pt",
     ):
         self.num_pitches = num_pitches
         self.save_path = save_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"INFO: device={self.device}")
         self.datautils = Datautils(file_path, max_files)
         sequence = self.datautils.load_corpus()
+        print("INFO: Sequence created")
+        print(f"INFO: sequence length: {len(sequence)}")
         self.datacorpus = Datacorpus(sequence, seq_len)
+        print("INFO: Dataset Loaded")
         self.dataloader = DataLoader(self.datacorpus, batch_size, True)
+        print("INFO: Data Loader is ready")
+        print(f"INFO: Data Loader Length: {len(self.dataloader)}")
         self.model = Model(
             hidden_size,
             num_layers,
@@ -130,8 +136,9 @@ class Train:
             cont_out_features,
             dropout,
         ).to(self.device)
+        print("INFO: Model Created.")
         self.optimize = Adam(self.model.parameters())
-        self.epochs = epoch
+        self.epochs = epochs
         self.cross_entropy = nn.CrossEntropyLoss()
         self.mse_error = nn.MSELoss()
 
@@ -152,7 +159,7 @@ class Train:
                 pitch_logit, cont_logit, _ = self.model(pitch_input, cont_input)
 
                 pitch_loss = self.cross_entropy(
-                    pitch_logit.reshape(self.num_pitches, -1), pitch_output.reshape(-1)
+                    pitch_logit.reshape(-1, self.num_pitches), pitch_output.reshape(-1)
                 )
                 cont_loss = self.mse_error(cont_logit, cont_output)
 
@@ -162,13 +169,11 @@ class Train:
                 self.optimize.step()
                 total_loss += loss.item()
             avg_loss = total_loss / len(self.dataloader)
-            print(
-                f"epoch {epoch:3d}/{self.epochs}  avg loss {avg_loss:.4f}  (pitch CE {pitch_loss.item():.3f}, cont MSE {cont_loss.item():.5f})"
-            )
+            print(f"epoch {epoch:3d}/{self.epochs}  avg loss {avg_loss:.4f}")
         torch.save(self.model.state_dict(), self.save_path)
 
 
 if __name__ == "__main__":
     print("Hello from Music-Generator!")
-    training = Train(max_files=32)
+    training = Train(max_files=16)
     training.train()
